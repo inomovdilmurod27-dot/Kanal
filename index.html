@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Real Face ID</title>
+<style>
+body{
+  margin:0;
+  background:#111;
+  color:white;
+  text-align:center;
+  font-family:sans-serif;
+}
+video{
+  margin-top:20px;
+  border:3px solid white;
+  border-radius:10px;
+}
+#status{
+  font-size:22px;
+  margin-top:15px;
+}
+#content{
+  display:none;
+  font-size:28px;
+  margin-top:20px;
+  color:lightgreen;
+}
+</style>
+</head>
+<body>
+
+<h1>🔒 Real Face ID</h1>
+
+<video id="video" width="400" autoplay muted></video>
+
+<div id="status">Model yuklanmoqda...</div>
+
+<div id="content">🎉 Tizim ochildi!</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+
+<script>
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const content = document.getElementById("content");
+
+let labeledDescriptor;
+
+// 🔥 MODELLARNI YUKLASH
+async function loadModels(){
+  await faceapi.nets.tinyFaceDetector.loadFromUri('./models/tiny_face_detector');
+  await faceapi.nets.faceLandmark68Net.loadFromUri('./models/face_landmark_68');
+  await faceapi.nets.faceRecognitionNet.loadFromUri('./models/face_recognition');
+}
+
+// 🔥 MASTER RASMNI YUKLASH
+async function loadMasterFace(){
+  const img = await faceapi.fetchImage('master.jpg');
+
+  const detection = await faceapi.detectSingleFace(
+    img,
+    new faceapi.TinyFaceDetectorOptions()
+  ).withFaceLandmarks().withFaceDescriptor();
+
+  if(!detection){
+    alert("master.jpg ichida yuz topilmadi!");
+    return;
+  }
+
+  labeledDescriptor = new faceapi.LabeledFaceDescriptors(
+    "Master",
+    [detection.descriptor]
+  );
+}
+
+// 🔥 ISHGA TUSHIRISH
+async function startSystem(){
+  await loadModels();
+  await loadMasterFace();
+
+  status.innerText = "Model yuklandi. Kamera ishga tushmoqda...";
+
+  const stream = await navigator.mediaDevices.getUserMedia({ video:{} });
+  video.srcObject = stream;
+}
+
+// 🔥 KAMERA ISHLAGANDA TEKSHIRISH
+video.addEventListener("play", () => {
+
+  const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.45);
+
+  setInterval(async () => {
+
+    const detections = await faceapi.detectAllFaces(
+      video,
+      new faceapi.TinyFaceDetectorOptions()
+    ).withFaceLandmarks().withFaceDescriptors();
+
+    if(detections.length > 0){
+
+      const bestMatch = faceMatcher.findBestMatch(
+        detections[0].descriptor
+      );
+
+      if(bestMatch.label === "Master"){
+        status.innerText = "✅ Tanish yuz — Ochildi";
+        content.style.display = "block";
+      }else{
+        status.innerText = "❌ Noto‘g‘ri yuz";
+        content.style.display = "none";
+      }
+
+    }else{
+      status.innerText = "❌ Yuz topilmadi";
+      content.style.display = "none";
+    }
+
+  }, 1000);
+
+});
+
+// 🚀 START
+startSystem();
+
+</script>
+
+</body>
+</html>
