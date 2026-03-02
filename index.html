@@ -2,127 +2,104 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Real Face ID</title>
+<title>Neon Galaxy Hand</title>
 <style>
 body{
   margin:0;
-  background:#111;
-  color:white;
-  text-align:center;
-  font-family:sans-serif;
+  overflow:hidden;
+  background:black;
 }
+
+canvas{
+  position:absolute;
+  top:0;
+  left:0;
+}
+
 video{
-  margin-top:20px;
-  border:3px solid white;
-  border-radius:10px;
-}
-#status{
-  font-size:22px;
-  margin-top:15px;
-}
-#content{
-  display:none;
-  font-size:28px;
-  margin-top:20px;
-  color:lightgreen;
+  position:fixed;
+  right:15px;
+  bottom:15px;
+  width:220px;
+  border-radius:20px;
+  border:2px solid #00ffff;
+  box-shadow:0 0 20px #00ffff;
 }
 </style>
 </head>
 <body>
 
-<h1>🔒 Real Face ID</h1>
+<canvas id="canvas"></canvas>
+<video id="video" autoplay playsinline></video>
 
-<video id="video" width="400" autoplay muted></video>
-
-<div id="status">Model yuklanmoqda...</div>
-
-<div id="content">🎉 Tizim ochildi!</div>
-
-<script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 const video = document.getElementById("video");
-const status = document.getElementById("status");
-const content = document.getElementById("content");
 
-let labeledDescriptor;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// 🔥 MODELLARNI YUKLASH
-async function loadModels(){
-  await faceapi.nets.tinyFaceDetector.loadFromUri('./models/tiny_face_detector');
-  await faceapi.nets.faceLandmark68Net.loadFromUri('./models/face_landmark_68');
-  await faceapi.nets.faceRecognitionNet.loadFromUri('./models/face_recognition');
-}
+let trail = [];
+let hue = 0;
 
-// 🔥 MASTER RASMNI YUKLASH
-async function loadMasterFace(){
-  const img = await faceapi.fetchImage('master.jpg');
+function animate(){
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  const detection = await faceapi.detectSingleFace(
-    img,
-    new faceapi.TinyFaceDetectorOptions()
-  ).withFaceLandmarks().withFaceDescriptor();
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.shadowBlur = 25;
+  ctx.shadowColor = `hsl(${hue},100%,60%)`;
 
-  if(!detection){
-    alert("master.jpg ichida yuz topilmadi!");
-    return;
+  ctx.beginPath();
+  for(let i=0;i<trail.length;i++){
+    ctx.strokeStyle = `hsl(${hue},100%,60%)`;
+    ctx.lineTo(trail[i].x, trail[i].y);
   }
+  ctx.stroke();
 
-  labeledDescriptor = new faceapi.LabeledFaceDescriptors(
-    "Master",
-    [detection.descriptor]
-  );
+  hue += 2;
+  requestAnimationFrame(animate);
 }
+animate();
 
-// 🔥 ISHGA TUSHIRISH
-async function startSystem(){
-  await loadModels();
-  await loadMasterFace();
-
-  status.innerText = "Model yuklandi. Kamera ishga tushmoqda...";
-
-  const stream = await navigator.mediaDevices.getUserMedia({ video:{} });
-  video.srcObject = stream;
-}
-
-// 🔥 KAMERA ISHLAGANDA TEKSHIRISH
-video.addEventListener("play", () => {
-
-  const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.45);
-
-  setInterval(async () => {
-
-    const detections = await faceapi.detectAllFaces(
-      video,
-      new faceapi.TinyFaceDetectorOptions()
-    ).withFaceLandmarks().withFaceDescriptors();
-
-    if(detections.length > 0){
-
-      const bestMatch = faceMatcher.findBestMatch(
-        detections[0].descriptor
-      );
-
-      if(bestMatch.label === "Master"){
-        status.innerText = "✅ Tanish yuz — Ochildi";
-        content.style.display = "block";
-      }else{
-        status.innerText = "❌ Noto‘g‘ri yuz";
-        content.style.display = "none";
-      }
-
-    }else{
-      status.innerText = "❌ Yuz topilmadi";
-      content.style.display = "none";
-    }
-
-  }, 1000);
-
+const hands = new Hands({
+  locateFile: file =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
 
-// 🚀 START
-startSystem();
+hands.setOptions({
+  maxNumHands:1,
+  modelComplexity:1,
+  minDetectionConfidence:0.7,
+  minTrackingConfidence:0.7
+});
 
+hands.onResults(results=>{
+  if(results.multiHandLandmarks.length>0){
+    const finger = results.multiHandLandmarks[0][8];
+    const x = finger.x * canvas.width;
+    const y = finger.y * canvas.height;
+
+    trail.push({x,y});
+    if(trail.length>50){
+      trail.shift();
+    }
+  }
+});
+
+const camera = new Camera(video,{
+  onFrame: async ()=>{
+    await hands.send({image:video});
+  },
+  width:640,
+  height:480
+});
+camera.start();
 </script>
 
 </body>
