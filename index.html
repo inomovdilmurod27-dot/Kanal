@@ -1,105 +1,268 @@
 <!DOCTYPE html>
-<html>
+<html lang="uz">
 <head>
 <meta charset="UTF-8">
-<title>Neon Galaxy Hand</title>
+<title>Trapetsiya Kanal Manning Kalkulyatori</title>
+
 <style>
+
 body{
-  margin:0;
-  overflow:hidden;
-  background:black;
+font-family:Arial, sans-serif;
+background:#f4f6f9;
+margin:0;
+padding:20px;
+}
+
+.container{
+max-width:1000px;
+margin:auto;
+background:white;
+padding:25px;
+border-radius:8px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+h1{
+text-align:center;
+margin-bottom:30px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:30px;
+}
+
+.panel{
+border:1px solid #ddd;
+padding:20px;
+border-radius:6px;
+background:#fafafa;
+}
+
+label{
+display:block;
+margin-top:10px;
+font-weight:bold;
+}
+
+input{
+width:95%;
+padding:8px;
+margin-top:5px;
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+button{
+margin-top:15px;
+padding:10px 20px;
+background:#2c7be5;
+color:white;
+border:none;
+border-radius:4px;
+cursor:pointer;
 }
 
 canvas{
-  position:absolute;
-  top:0;
-  left:0;
+border:1px solid #ccc;
+margin-top:10px;
 }
 
-video{
-  position:fixed;
-  right:15px;
-  bottom:15px;
-  width:220px;
-  border-radius:20px;
-  border:2px solid #00ffff;
-  box-shadow:0 0 20px #00ffff;
+table{
+width:100%;
+margin-top:30px;
+border-collapse:collapse;
 }
+
+th,td{
+border:1px solid #ccc;
+padding:10px;
+text-align:center;
+}
+
+th{
+background:#f0f0f0;
+}
+
 </style>
 </head>
+
 <body>
 
-<canvas id="canvas"></canvas>
-<video id="video" autoplay playsinline></video>
+<div class="container">
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<h1>Trapetsiya kanal uchun Manning formulasi</h1>
+
+<div class="grid">
+
+<div class="panel">
+
+<label>Suv sarfi Q (m³/s)</label>
+<input type="number" id="Q">
+
+<label>Suv chuqurligi y (m)</label>
+<input type="number" id="y">
+
+<label>Yon qiyalik koeffitsienti m</label>
+<input type="number" id="z">
+
+<label>Manning koeffitsienti n</label>
+<input type="number" step="0.001" id="n">
+
+<label>Kanal nishabi S</label>
+<input type="number" step="0.0001" id="s">
+
+<button onclick="hisobla()">Hisoblash</button>
+
+</div>
+
+<div class="panel">
+
+<canvas id="diagram" width="420" height="320"></canvas>
+
+</div>
+
+</div>
+
+<h2 style="margin-top:30px;text-align:center">Hisob natijalari</h2>
+
+<table>
+
+<tr>
+<th>Kattalik</th>
+<th>Qiymat</th>
+</tr>
+
+<tr>
+<td>Kanal tubi kengligi b (m)</td>
+<td id="b"></td>
+</tr>
+
+<tr>
+<td>Kanal maydoni A (m²)</td>
+<td id="A"></td>
+</tr>
+
+<tr>
+<td>Namlangan perimetr P (m)</td>
+<td id="P"></td>
+</tr>
+
+<tr>
+<td>Gidravlik radius R (m)</td>
+<td id="R"></td>
+</tr>
+
+<tr>
+<td>Tezlik V (m/s)</td>
+<td id="V"></td>
+</tr>
+
+</table>
+
+</div>
 
 <script>
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const video = document.getElementById("video");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function hisobla(){
 
-let trail = [];
-let hue = 0;
+let Q=parseFloat(document.getElementById("Q").value);
+let y=parseFloat(document.getElementById("y").value);
+let z=parseFloat(document.getElementById("z").value);
+let n=parseFloat(document.getElementById("n").value);
+let s=parseFloat(document.getElementById("s").value);
 
-function animate(){
-  ctx.fillStyle = "rgba(0,0,0,0.1)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+/* b formulasi */
 
-  ctx.lineWidth = 8;
-  ctx.lineCap = "round";
-  ctx.shadowBlur = 25;
-  ctx.shadowColor = `hsl(${hue},100%,60%)`;
+let b=1.2*Math.pow(Q,2/3);
 
-  ctx.beginPath();
-  for(let i=0;i<trail.length;i++){
-    ctx.strokeStyle = `hsl(${hue},100%,60%)`;
-    ctx.lineTo(trail[i].x, trail[i].y);
-  }
-  ctx.stroke();
+/* geometrik hisob */
 
-  hue += 2;
-  requestAnimationFrame(animate);
+let A=(b+z*y)*y;
+let P=b+2*y*Math.sqrt(1+z*z);
+let R=A/P;
+
+/* manning formulasi */
+
+let V=(1/n)*Math.pow(R,2/3)*Math.sqrt(s);
+
+/* natijalarni chiqarish */
+
+document.getElementById("b").innerHTML=b.toFixed(3);
+document.getElementById("A").innerHTML=A.toFixed(3);
+document.getElementById("P").innerHTML=P.toFixed(3);
+document.getElementById("R").innerHTML=R.toFixed(3);
+document.getElementById("V").innerHTML=V.toFixed(3);
+
+/* chizma */
+
+chizma(b,y,z);
+
 }
-animate();
 
-const hands = new Hands({
-  locateFile: file =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
+function chizma(b,y,z){
 
-hands.setOptions({
-  maxNumHands:1,
-  modelComplexity:1,
-  minDetectionConfidence:0.7,
-  minTrackingConfidence:0.7
-});
+let canvas=document.getElementById("diagram");
+let ctx=canvas.getContext("2d");
 
-hands.onResults(results=>{
-  if(results.multiHandLandmarks.length>0){
-    const finger = results.multiHandLandmarks[0][8];
-    const x = finger.x * canvas.width;
-    const y = finger.y * canvas.height;
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    trail.push({x,y});
-    if(trail.length>50){
-      trail.shift();
-    }
-  }
-});
+let top=b+2*z*y;
 
-const camera = new Camera(video,{
-  onFrame: async ()=>{
-    await hands.send({image:video});
-  },
-  width:640,
-  height:480
-});
-camera.start();
+let scaleX=(canvas.width-100)/top;
+let scaleY=(canvas.height-120)/y;
+
+let scale=Math.min(scaleX,scaleY);
+
+let bottom=b*scale;
+let side=z*y*scale;
+let depth=y*scale;
+
+let center=canvas.width/2;
+let baseY=canvas.height-50;
+
+/* masshtab */
+
+ctx.font="14px Arial";
+ctx.fillText("Masshtab 1:1000",160,20);
+
+/* trapetsiya */
+
+ctx.beginPath();
+ctx.moveTo(center-bottom/2,baseY);
+ctx.lineTo(center+bottom/2,baseY);
+ctx.lineTo(center+bottom/2+side,baseY-depth);
+ctx.lineTo(center-bottom/2-side,baseY-depth);
+ctx.closePath();
+
+ctx.strokeStyle="#333";
+ctx.lineWidth=2;
+ctx.stroke();
+
+ctx.fillStyle="rgba(52,152,219,0.25)";
+ctx.fill();
+
+/* b kenglik */
+
+ctx.beginPath();
+ctx.moveTo(center-bottom/2,baseY+20);
+ctx.lineTo(center+bottom/2,baseY+20);
+ctx.stroke();
+
+ctx.fillText("b = "+b.toFixed(2)+" m",center-30,baseY+40);
+
+/* chuqurlik */
+
+ctx.beginPath();
+ctx.moveTo(center-bottom/2-side-15,baseY);
+ctx.lineTo(center-bottom/2-side-15,baseY-depth);
+ctx.stroke();
+
+ctx.fillText("y = "+y+" m",center-bottom/2-side-70,baseY-depth/2);
+
+}
+
 </script>
 
 </body>
